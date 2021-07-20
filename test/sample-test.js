@@ -3,44 +3,38 @@ const { convertBigNumberArray } = require("./helpers/math");
 
 describe("Bounty Program", function () {
   it("Initialize  contracts", async function () {
-    const Greeter = await ethers.getContractFactory("Greeter");
-    const greeter = await Greeter.deploy();
-    await greeter.returnAdminAddress();
+    const Bounty = await ethers.getContractFactory("Bounty");
+    const bountyContract = await Bounty.deploy();
 
-    await greeter.initializeUser();
+    await bountyContract.returnAdminAddress();
+    await bountyContract.initializeUser();
 
-    let fetchedUserData = await greeter.getUserData();
+    let fetchedUserData = await bountyContract.getUserData();
     assert.equal(fetchedUserData[0], true);
   });
 
-  it("Submit bounty", async () => {
-    const Greeter = await ethers.getContractFactory("Greeter");
-    const greeter = await Greeter.deploy();
+  it("Submit Challenges", async () => {
+    const Bounty = await ethers.getContractFactory("Bounty");
+    const bountyContract = await Bounty.deploy();
 
-    await greeter.submitBounty("SAMPLE");
+    await bountyContract.submitChallenge("SAMPLE");
 
-    let [name, creator, votes] = await greeter.fetchBountyById(0);
-    assert.equal(name, "SAMPLE");
-
-    // Return all bounties
-    let bountyNames = await greeter.returnAllBounties();
-    assert.equal(bountyNames[0], "SAMPLE");
+    let returnedBounties = await bountyContract.returnChallenges();
+    assert.deepEqual(returnedBounties, ["SAMPLE"]);
   });
 
   it("Voting", async () => {
-    const Greeter = await ethers.getContractFactory("Greeter");
-    const greeter = await Greeter.deploy();
-    await greeter.submitBounty("SAMPLE");
+    const Bounty = await ethers.getContractFactory("Bounty");
+    const bountyContract = await Bounty.deploy();
 
-    // vote
-    await greeter.voteOnBounty(0);
+    await bountyContract.submitChallenge("SAMPLE");
 
-    // retrieve user information
-    let fetchedUserData = await greeter.getUserData();
-    assert.deepEqual(convertBigNumberArray(fetchedUserData[1]), ["0"]);
+    // vote on challenge
+    await bountyContract.submitSubmission(0);
 
-    // retrieve bounty votes
-    let fetchedBounty = await greeter.fetchBountyById(0);
-    assert.equal(fetchedBounty[2].toNumber(), 1);
+    // check for returned votes
+    let returnedVotes = await bountyContract.returnSingleChallenge(0);
+    console.log(returnedVotes.toNumber());
+    assert.equal(returnedVotes, 1);
   });
 });
