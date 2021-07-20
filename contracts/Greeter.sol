@@ -40,6 +40,12 @@ contract Greeter {
         return bountyNames;
     }
 
+    // vote
+    function voteOnBounty(uint256 _id) public {
+        bounties[_id].votes += 1;
+        users[msg.sender].votes.push(_id);
+    }
+
     function fetchBountyById(uint256 _id)
         public
         view
@@ -68,7 +74,7 @@ contract Greeter {
 
     // modifiers
     modifier doesUserExist() {
-        if (users[msg.sender].initialized == true) {
+        if (users[msg.sender].initialized == false) {
             _;
         }
     }
