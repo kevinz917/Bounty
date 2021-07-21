@@ -1,5 +1,4 @@
 const { expect, assert } = require("chai");
-const { convertBigNumberArray } = require("./helpers/math");
 
 describe("Bounty Program", function () {
   it("Initialize  contracts", async function () {
@@ -13,28 +12,22 @@ describe("Bounty Program", function () {
     assert.equal(fetchedUserData[0], true);
   });
 
-  it("Submit Challenges", async () => {
-    const Bounty = await ethers.getContractFactory("Bounty");
-    const bountyContract = await Bounty.deploy();
+  // it("Submit Challenges", async () => {
+  //   const Bounty = await ethers.getContractFactory("Bounty");
+  //   const bountyContract = await Bounty.deploy();
 
-    await bountyContract.submitChallenge("SAMPLE");
+  //   await bountyContract.submitChallenge("SAMPLE");
 
-    let returnedBounties = await bountyContract.returnChallenges();
-    assert.deepEqual(returnedBounties, ["SAMPLE"]);
-  });
+  //   let returnedBounties = await bountyContract.returnChallenges();
+  //   assert.deepEqual(returnedBounties, ["SAMPLE"]);
+  // });
 
-  it("Voting", async () => {
-    const Bounty = await ethers.getContractFactory("Bounty");
-    const bountyContract = await Bounty.deploy();
+  // it("Voting", async () => {
+  //   const Bounty = await ethers.getContractFactory("Bounty");
+  //   const bountyContract = await Bounty.deploy();
 
-    await bountyContract.submitChallenge("SAMPLE");
-
-    // vote on challenge
-    await bountyContract.submitSubmission(0);
-
-    // check for returned votes
-    let returnedVotes = await bountyContract.returnSingleChallenge(0);
-    console.log(returnedVotes.toNumber());
-    assert.equal(returnedVotes, 1);
-  });
+  //   await bountyContract.submitChallenge("SAMPLE", {
+  //     value: ethers.utils.parseEther("0.1"),
+  //   });
+  // });
 });
