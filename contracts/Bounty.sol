@@ -7,15 +7,14 @@ contract Bounty {
   address public adminAddress;
 
   mapping(address => User) users;
-  mapping(address => uint256) reward;
+  mapping(address => uint256) private balances;
 
-  // Challenge => Submission => Voted
-  mapping(address => mapping(uint256 => mapping(uint256 => bool))) votes;
+  mapping(address => mapping(uint256 => mapping(uint256 => bool))) votes; // Challenge => Submission => Voted
 
   Challenge[] challenges;
 
   struct User {
-    bool initialized;
+    bool initialized; // Perhaps store more metadata
   }
 
   struct Submission {
@@ -25,8 +24,10 @@ contract Bounty {
   }
 
   struct Challenge {
-    address creator;
     string name;
+    uint256 startTime;
+    uint256 duration;
+    address creator;
     uint256 amount;
     Submission[] submissions; // Mappings cannot be iterated upon so we use array
   }
@@ -38,12 +39,16 @@ contract Bounty {
   event Vote(address indexed _from, uint256 indexed _challenge_id, uint256 indexed _submission_id);
 
   // Challenges - with bounty amount
-  function submitChallenge(string memory _name) public payable {
+  function submitChallenge(string memory _name, uint256 duration) public payable {
+    require(msg.value > 10e15); // at least 0.01 ETH
+
     uint256 idx = challenges.length;
     challenges.push();
     Challenge storage c = challenges[idx];
     c.name = _name;
+    c.duration = duration;
     c.creator = msg.sender;
+    c.startTime = block.timestamp;
     c.amount = msg.value;
   }
 
@@ -118,6 +123,31 @@ contract Bounty {
 
   function getUserData() public view returns (bool) {
     return users[msg.sender].initialized;
+  }
+
+  function getBalance() public view returns (uint256) {
+    return balances[msg.sender];
+  }
+
+  ////// Payout function ///
+  function payout(uint256 _challenge_id) public {
+    Challenge memory challenge = challenges[_challenge_id];
+
+    require(block.timestamp > challenge.startTime + challenge.duration * 1 days, "Challenge has not ended");
+    require(challenge.submissions.length > 0, "No submissions");
+
+    Submission[] memory submissions = challenge.submissions;
+
+    Submission memory winningSubmission = submissions[0];
+    for (uint256 i = 0; i < submissions.length; i++) {
+      if (submissions[i].votes > winningSubmission.votes) {
+        winningSubmission = submissions[i];
+      }
+    }
+
+    balances[winningSubmission.creator] += challenge.amount;
+
+    // EMIT WINNER EVENT
   }
 
   //////////////////////// modifiers ////////////////////////

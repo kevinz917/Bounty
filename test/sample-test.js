@@ -23,7 +23,7 @@ describe("Bounty Program", async function () {
   });
 
   it("Submit Challenges", async () => {
-    await bountyContract.submitChallenge("First Bounty");
+    await bountyContract.submitChallenge("First Bounty", 10, { value: "100000000000000000000" });
 
     // Challenge count
     let contractCount = await bountyContract.returnChallengeCount();
@@ -47,18 +47,27 @@ describe("Bounty Program", async function () {
 
     // Submit a second submission for first challenge
     await bountyContract.submitSubmission(0, "Second submission");
-    let secondSubmission = await bountyContract.fetchSubmissionByChallenge(0, 1);
-    assert.equal(secondSubmission[0], "Second submission");
-
-    // Count submissions
-    let count = await bountyContract.fetchSubmissionCountByChallenge(0);
-    assert.equal(2, count);
+    let secondSubmissionInfo = await bountyContract.fetchSubmissionByChallenge(0, 1);
+    expect(secondSubmissionInfo[0]).to.equal("Second submission");
   });
 
   it("Vote on submission", async () => {
     await bountyContract.voteOnSubmission(0, 0);
+    expect(await bountyContract.hasVoted(0, 0)).to.equal(true);
+  });
 
-    let hasUserVoted = await bountyContract.hasVoted(0, 0);
-    assert.equal(hasUserVoted, true);
+  it("Payout mechanism", async () => {
+    await expect(bountyContract.payout(0)).to.be.revertedWith("Challenge has not ended"); // Challenge has not ended
+    expect(await bountyContract.getBalance()).to.be.equal(0); // Balance should be zero
+  });
+
+  it("Submit second challenge", async () => {
+    await bountyContract.submitChallenge("First Bounty", 0, { value: "100000000000000000000" }); // Create a second challenge that instantly ends
+    await expect(bountyContract.payout(1)).to.be.revertedWith("No submissions"); // Reverted due to no submissions
+
+    await bountyContract.submitSubmission(1, "First submission of second challenge");
+    await bountyContract.payout(1);
+    let balance = await bountyContract.getBalance();
+    expect(balance, 100000000000000000000);
   });
 });
