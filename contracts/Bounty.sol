@@ -1,94 +1,136 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 
 contract Bounty {
-    address adminAddress;
-    mapping(address => User) users;
-    mapping(address => uint256) credit;
+  address public adminAddress;
 
-    Challenge[] challenges;
+  mapping(address => User) users;
+  mapping(address => uint256) reward;
 
-    struct User {
-        bool initialized;
-        uint256[] votes;
+  // Challenge => Submission => Voted
+  mapping(address => mapping(uint256 => mapping(uint256 => bool))) votes;
+
+  Challenge[] challenges;
+
+  struct User {
+    bool initialized;
+  }
+
+  struct Submission {
+    string name;
+    address creator;
+    uint256 votes; // Should we store a mapping as well?
+  }
+
+  struct Challenge {
+    address creator;
+    string name;
+    uint256 amount;
+    Submission[] submissions; // Mappings cannot be iterated upon so we use array
+  }
+
+  constructor() {
+    adminAddress = msg.sender;
+  }
+
+  event Vote(address indexed _from, uint256 indexed _challenge_id, uint256 indexed _submission_id);
+
+  // Challenges - with bounty amount
+  function submitChallenge(string memory _name) public payable {
+    uint256 idx = challenges.length;
+    challenges.push();
+    Challenge storage c = challenges[idx];
+    c.name = _name;
+    c.creator = msg.sender;
+    c.amount = msg.value;
+  }
+
+  function returnChallengeCount() public view returns (uint256) {
+    return challenges.length;
+  }
+
+  // Return single Challenge by index
+  function returnChallengesByIndex(uint256 idx)
+    public
+    view
+    returns (
+      address,
+      string memory,
+      uint256
+    )
+  {
+    return (challenges[idx].creator, challenges[idx].name, challenges[idx].amount);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  // Add submission to a challenge
+  function submitSubmission(uint256 _challenge_id, string memory name) public {
+    Submission memory new_submission;
+    new_submission.name = name;
+    new_submission.creator = msg.sender;
+    new_submission.votes = 0;
+
+    challenges[_challenge_id].submissions.push(new_submission);
+
+    // Add submission event
+  }
+
+  function fetchSubmissionCountByChallenge(uint256 _challenge_id) public view returns (uint256) {
+    return challenges[_challenge_id].submissions.length;
+  }
+
+  // Fetch submission details by challenge
+  function fetchSubmissionByChallenge(uint256 _challenge_id, uint256 _submission_id)
+    public
+    view
+    returns (
+      string memory,
+      address,
+      uint256
+    )
+  {
+    Submission memory submission = challenges[_challenge_id].submissions[_submission_id];
+    return (submission.name, submission.creator, submission.votes);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Vote on a submission
+  function voteOnSubmission(uint256 _challenge_id, uint256 _submission_id) public {
+    challenges[_challenge_id].submissions[_submission_id].votes += 1;
+    votes[msg.sender][_challenge_id][_submission_id] = true;
+
+    emit Vote(msg.sender, _challenge_id, _submission_id);
+  }
+
+  function hasVoted(uint256 _challenge_id, uint256 _submission_id) public view returns (bool) {
+    return votes[msg.sender][_challenge_id][_submission_id];
+  }
+
+  //////////////////////// USER ///////////////////////////////////////////////
+  function initializeUser() public doesUserExist {
+    User memory _user;
+    _user.initialized = true;
+    users[msg.sender] = _user;
+  }
+
+  function getUserData() public view returns (bool) {
+    return users[msg.sender].initialized;
+  }
+
+  //////////////////////// modifiers ////////////////////////
+  modifier doesUserExist() {
+    if (users[msg.sender].initialized == false) {
+      _;
     }
+  }
 
-    struct Submission {
-        string name;
-        address creator;
-        uint256 votes;
-    }
+  /////////////////////////// Other /////////////////////////////////////////////
+  function returnAdminAddress() public view returns (address) {
+    return adminAddress;
+  }
 
-    struct Challenge {
-        address creator;
-        string name;
-        uint256 amount;
-        Submission[] submissions;
-    }
-
-    constructor() {
-        adminAddress = msg.sender;
-    }
-
-    // Challenges - with bounty amount
-    function submitChallenge(string memory _name) public payable {
-        Challenge memory new_challenge;
-        // new_challenge.name = _name;
-        // new_challenge.creator = msg.sender;
-        // new_challenge.amount = msg.value;
-
-        challenges.push(new_challenge);
-    }
-
-    // // State transition function
-    // function triggerCompletion(uint256 _id) public payable {
-    //     require(_id < challenges.length);
-    // }
-
-    // function returnChallenges() public view returns (string[] memory) {
-    //     string[] memory challengeNames = new string[](challenges.length);
-    //     for (uint256 i = 0; i < challenges.length; i++) {
-    //         challengeNames[0] = challenges[i].name;
-    //     }
-    //     return challengeNames;
-    // }
-
-    // // Submissions to challenges
-    // function submitSubmission(uint256 _challenge_id, string memory name)
-    //     public
-    // {
-    //     Submission memory new_submission;
-    //     new_submission.name = name;
-    //     new_submission.creator = msg.sender;
-
-    //     challenges[_challenge_id].submissions.push(new_submission);
-    // }
-
-    // // vote
-    // function voteOnSubmission(uint256 _challengeid, uint256 _id) public {
-    //     challenges[_challengeid].submissions[_id].votes += 1;
-    //     users[msg.sender].votes.push(_id);
-    // }
-
-    // function returnAdminAddress() public view returns (address) {
-    //     return adminAddress;
-    // }
-
-    // function initializeUser() public doesUserExist {
-    //     User memory _user;
-    //     _user.initialized = true;
-    //     users[msg.sender] = _user;
-    // }
-
-    // function getUserData() public view returns (bool, uint256[] memory) {
-    //     return (users[msg.sender].initialized, users[msg.sender].votes);
-    // }
-
-    // // modifiers
-    // modifier doesUserExist() {
-    //     if (users[msg.sender].initialized == false) {
-    //         _;
-    //     }
-    // }
+  // ADD WHITELIST FUNCTION: ONLY WHITELISTED USER CAN PARTICIPATE IN BOUNTY CREATIONS
 }
