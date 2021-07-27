@@ -6,7 +6,7 @@ import "hardhat/console.sol";
 contract Bounty {
   address public adminAddress;
 
-  mapping(address => User) users;
+  mapping(address => User) private users;
   mapping(address => uint256) private balances;
 
   mapping(address => mapping(uint256 => mapping(uint256 => bool))) votes; // Challenge => Submission => Voted
@@ -14,13 +14,13 @@ contract Bounty {
   Challenge[] challenges;
 
   struct User {
-    bool initialized; // Perhaps store more metadata
+    bool initialized;
   }
 
   struct Submission {
     string name;
     address creator;
-    uint256 votes; // Should we store a mapping as well?
+    uint256 votes;
   }
 
   struct Challenge {
@@ -36,11 +36,17 @@ contract Bounty {
     adminAddress = msg.sender;
   }
 
-  event Vote(address indexed _from, uint256 indexed _challenge_id, uint256 indexed _submission_id);
+  event ChallengeCreated(address indexed _from, uint256 _challenge_id);
+  event SubmissionVote(address indexed _from, uint256 indexed _challenge_id, uint256 indexed _submission_id);
+  event SubmissionSent(address indexed _from, uint256 indexed _challenge_id, uint256 indexed _submission_id);
 
-  // Challenges - with bounty amount
+  // ****************************** Challenges ***********************************
+
+  // this allows (in the future whitelisted) users to submit a challenge
+  // challenges are attached with bounty amounts that are at least 0.01 Eth.
+  // When the challenge time expires, "payout" can be called to distribute funds.
   function submitChallenge(string memory _name, uint256 duration) public payable {
-    require(msg.value > 10e15); // at least 0.01 ETH
+    require(msg.value > 10e15);
 
     uint256 idx = challenges.length;
     challenges.push();
@@ -50,13 +56,19 @@ contract Bounty {
     c.creator = msg.sender;
     c.startTime = block.timestamp;
     c.amount = msg.value;
+
+    emit ChallengeCreated(msg.sender, idx);
   }
 
+  // use case: after the front end returns the length of all challenges,
+  // "returnChallengesByIndex" can be called to individually index detailed info
+  // to render the UI
   function returnChallengeCount() public view returns (uint256) {
     return challenges.length;
   }
 
-  // Return single Challenge by index
+  // used in conjunction with "returnChallengeCount" to fetch detailed information
+  //   about an individual challenge
   function returnChallengesByIndex(uint256 idx)
     public
     view
@@ -69,18 +81,20 @@ contract Bounty {
     return (challenges[idx].creator, challenges[idx].name, challenges[idx].amount);
   }
 
-  /////////////////////////////////////////////////////////////////////////////
+  // ****************************** Submissions ***********************************
 
-  // Add submission to a challenge
+  // this allows anyone to submit a submission for an existing challenge
+  // the bounty amount is distributed in proportion to the number of votes received.
   function submitSubmission(uint256 _challenge_id, string memory name) public {
+    require(returnChallengeCount() > _challenge_id);
+
     Submission memory new_submission;
     new_submission.name = name;
     new_submission.creator = msg.sender;
     new_submission.votes = 0;
 
     challenges[_challenge_id].submissions.push(new_submission);
-
-    // Add submission event
+    emit SubmissionSent(msg.sender, _challenge_id, challenges[_challenge_id].submissions.length);
   }
 
   function fetchSubmissionCountByChallenge(uint256 _challenge_id) public view returns (uint256) {
@@ -101,20 +115,22 @@ contract Bounty {
     return (submission.name, submission.creator, submission.votes);
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  // Vote on a submission
+  // ****************************** votes ***********************************
+
+  // allows any user to vote on a submission. Votes determine who receives the bounty
   function voteOnSubmission(uint256 _challenge_id, uint256 _submission_id) public {
     challenges[_challenge_id].submissions[_submission_id].votes += 1;
     votes[msg.sender][_challenge_id][_submission_id] = true;
 
-    emit Vote(msg.sender, _challenge_id, _submission_id);
+    emit SubmissionVote(msg.sender, _challenge_id, _submission_id);
   }
 
   function hasVoted(uint256 _challenge_id, uint256 _submission_id) public view returns (bool) {
     return votes[msg.sender][_challenge_id][_submission_id];
   }
 
-  //////////////////////// USER ///////////////////////////////////////////////
+  // ****************************** user ***********************************
+
   function initializeUser() public doesUserExist {
     User memory _user;
     _user.initialized = true;
@@ -129,7 +145,8 @@ contract Bounty {
     return balances[msg.sender];
   }
 
-  ////// Payout function ///
+  // ****************************** payout ***********************************
+
   function payout(uint256 _challenge_id) public {
     Challenge memory challenge = challenges[_challenge_id];
 
@@ -147,17 +164,19 @@ contract Bounty {
 
     balances[winningSubmission.creator] += challenge.amount;
 
-    // EMIT WINNER EVENT
+    //  Emit winner event
   }
 
-  //////////////////////// modifiers ////////////////////////
+  // ****************************** modifiers ***********************************
+
   modifier doesUserExist() {
     if (users[msg.sender].initialized == false) {
       _;
     }
   }
 
-  /////////////////////////// Other /////////////////////////////////////////////
+  // ****************************** other ***********************************
+
   function returnAdminAddress() public view returns (address) {
     return adminAddress;
   }
