@@ -68,7 +68,7 @@ contract Bounty {
   }
 
   // used in conjunction with "returnChallengeCount" to fetch detailed information
-  //   about an individual challenge
+  // about an individual challenge
   function returnChallengesByIndex(uint256 idx)
     public
     view
