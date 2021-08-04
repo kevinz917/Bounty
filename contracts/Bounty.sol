@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./interface/IBounty.sol";
+
 import "hardhat/console.sol";
 
-contract Bounty {
+contract Bounty is IBounty {
   address public adminAddress;
 
   mapping(address => User) private users;
@@ -45,7 +47,7 @@ contract Bounty {
   // this allows (in the future whitelisted) users to submit a challenge
   // challenges are attached with bounty amounts that are at least 0.01 Eth.
   // When the challenge time expires, "payout" can be called to distribute funds.
-  function submitChallenge(string memory _name, uint256 duration) public payable {
+  function submitChallenge(string memory _name, uint256 duration) public payable override {
     require(msg.value > 10e15);
 
     uint256 idx = challenges.length;
@@ -63,7 +65,7 @@ contract Bounty {
   // use case: after the front end returns the length of all challenges,
   // "returnChallengesByIndex" can be called to individually index detailed info
   // to render the UI
-  function returnChallengeCount() public view returns (uint256) {
+  function returnChallengeCount() public view override returns (uint256) {
     return challenges.length;
   }
 
@@ -72,6 +74,7 @@ contract Bounty {
   function returnChallengesByIndex(uint256 idx)
     public
     view
+    override
     returns (
       address,
       string memory,
@@ -85,7 +88,7 @@ contract Bounty {
 
   // this allows anyone to submit a submission for an existing challenge
   // the bounty amount is distributed in proportion to the number of votes received.
-  function submitSubmission(uint256 _challenge_id, string memory name) public {
+  function submitSubmission(uint256 _challenge_id, string memory name) public override {
     require(returnChallengeCount() > _challenge_id);
 
     Submission memory new_submission;
@@ -97,7 +100,7 @@ contract Bounty {
     emit SubmissionSent(msg.sender, _challenge_id, challenges[_challenge_id].submissions.length);
   }
 
-  function fetchSubmissionCountByChallenge(uint256 _challenge_id) public view returns (uint256) {
+  function fetchSubmissionCountByChallenge(uint256 _challenge_id) public view override returns (uint256) {
     return challenges[_challenge_id].submissions.length;
   }
 
@@ -105,6 +108,7 @@ contract Bounty {
   function fetchSubmissionByChallenge(uint256 _challenge_id, uint256 _submission_id)
     public
     view
+    override
     returns (
       string memory,
       address,
